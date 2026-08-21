@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>img.scdn.io CORS Test (image_url di FormData)</title>
+    <title>img.scdn.io CORS Test (Mirip Postman)</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -25,7 +25,7 @@
 </head>
 <body>
 
-<h2>img.scdn.io CORS Test (image_url di FormData)</h2>
+<h2>img.scdn.io CORS Test (Postman Style)</h2>
 <pre id="result">Memproses...</pre>
 
 <script>
@@ -61,24 +61,39 @@
                 throw new Error('Hanya protokol HTTP dan HTTPS yang diizinkan');
             }
 
-            // Bangun URL dengan parameter di query string (selain image_url)
+            // ---------- ENCODE URL untuk query string (hanya ganti & dengan %26) ----------
+            // Ini sesuai dengan yang dilakukan Postman
+            const encodedForQuery = originalUrl.replace(/&/g, '%26');
+
+            // Bangun URL API dengan parameter di query string
             const apiUrl = new URL('https://img.scdn.io/api/v1.php');
             apiUrl.searchParams.set('outputFormat', 'auto');
             apiUrl.searchParams.set('cdn_domain', 'default');
             apiUrl.searchParams.set('storage_destination', 'local');
-            // image_url akan dikirim di FormData, bukan di query string
+            // Set image_url dengan nilai yang sudah di-encode secara manual
+            // Karena URLSearchParams akan meng-encode lagi, kita set langsung sebagai string
+            // Kita override dengan menggabungkan manual
+            const baseUrl = apiUrl.toString().split('?')[0];
+            const queryParams = new URLSearchParams({
+                outputFormat: 'auto',
+                cdn_domain: 'default',
+                storage_destination: 'local'
+            });
+            // Tambahkan image_url dengan encoding khusus (hanya &)
+            const finalUrl = `${baseUrl}?${queryParams.toString()}&image_url=${encodedForQuery}`;
 
-            // Buat FormData dan tambahkan image_url
+            // ---------- BUAT FORMDATA untuk body (field image_url dengan nilai mentah) ----------
             const formData = new FormData();
-            formData.append('image_url', originalUrl); // URL asli, tidak di-encode
+            formData.append('image_url', originalUrl); // nilai asli, tanpa encoding
 
-            // Kirim request
-            const response = await fetch(apiUrl.toString(), {
+            // ---------- KIRIM REQUEST ----------
+            const response = await fetch(finalUrl, {
                 method: 'POST',
-                body: formData, // Header Content-Type otomatis multipart/form-data
+                body: formData,          // otomatis set Content-Type: multipart/form-data
                 headers: {
                     'Accept': '*/*'
-                }
+                },
+                credentials: 'include'   // kirim cookie jika ada (misal PHPSESSID)
             });
 
             const text = await response.text();
@@ -89,21 +104,26 @@
                 data = { success: false, parseError: true, raw: text };
             }
 
+            // ---------- TAMPILKAN HASIL ----------
             if (response.ok && data.success) {
                 show({
                     success: true,
                     cors: true,
                     http_status: response.status,
+                    used_method: 'query string (encode &) + FormData body',
                     original_url: originalUrl,
-                    img_scdn_response: data,
-                    note: 'Berhasil! image_url dikirim di FormData (tidak di-encode di query string).'
+                    encoded_url_sent: encodedForQuery,
+                    final_request_url: finalUrl,
+                    img_scdn_response: data
                 });
             } else {
                 show({
                     success: false,
+                    cors: true,
                     http_status: response.status,
+                    used_method: 'query string + FormData',
                     img_scdn_response: data,
-                    error: 'Gagal memproses gambar.'
+                    error: 'Gagal memproses gambar. Mungkin URL sudah kedaluwarsa.'
                 });
             }
 
@@ -113,7 +133,7 @@
                 cors: false,
                 error: error.name,
                 message: error.message,
-                note: 'Jika CORS error, berarti browser memblokir. Gunakan ekstensi CORS atau proxy.'
+                note: 'Jika CORS error, berarti browser memblokir. Pastikan tidak ada ekstensi yang mengganggu.'
             });
             console.error('FULL ERROR:', error);
         }
