@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Download Gambar</title>
+    <title>Download Gambar (Tanpa Proxy)</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -32,7 +32,7 @@
             box-sizing: border-box;
         }
         button {
-            background: #007bff;
+            background: #28a745;
             color: white;
             border: none;
             padding: 12px 24px;
@@ -42,7 +42,7 @@
             margin-top: 15px;
         }
         button:hover {
-            background: #0056b3;
+            background: #218838;
         }
         button:disabled {
             background: #6c757d;
@@ -69,6 +69,17 @@
             color: #004085;
             display: block;
         }
+        #status.info {
+            background: #fff3cd;
+            color: #856404;
+            display: block;
+        }
+        .note {
+            font-size: 12px;
+            color: #888;
+            margin-top: 10px;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -79,6 +90,7 @@
     <input type="text" id="urlInput" placeholder="https://example.com/image.jpg" value="https://via.placeholder.com/150">
     <button id="downloadBtn">Download</button>
     <div id="status"></div>
+    <div class="note">Catatan: URL dari Instagram/Facebook biasanya tidak bisa diunduh langsung karena CORS. Jika gagal, buka URL di tab baru lalu simpan manual.</div>
 </div>
 
 <script>
@@ -115,12 +127,13 @@
         setStatus('⏳ Mengunduh gambar...', 'loading');
 
         try {
-            // Gunakan proxy CORS untuk menghindari blokir
-            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(imageUrl)}`;
-            const response = await fetch(proxyUrl);
+            // Coba fetch langsung (tanpa proxy)
+            const response = await fetch(imageUrl, {
+                mode: 'cors' // default, tapi tetap akan gagal jika server tidak memberi CORS
+            });
 
             if (!response.ok) {
-                throw new Error(`Gagal mengunduh: HTTP ${response.status}`);
+                throw new Error(`HTTP ${response.status} ${response.statusText}`);
             }
 
             // Ambil blob
@@ -149,7 +162,16 @@
             setStatus(`✅ Berhasil diunduh: ${fileName} (${(blob.size / 1024).toFixed(2)} KB)`, 'success');
 
         } catch (error) {
-            setStatus(`❌ Error: ${error.message}`, 'error');
+            // CORS error biasanya: TypeError: Failed to fetch
+            if (error.message.includes('Failed to fetch') || error.message.includes('CORS')) {
+                setStatus(
+                    '❌ Gagal mengunduh karena CORS (server tidak mengizinkan akses dari browser).\n' +
+                    'Solusi: Buka URL di tab baru, lalu klik kanan → Save Image As...',
+                    'info'
+                );
+            } else {
+                setStatus(`❌ Error: ${error.message}`, 'error');
+            }
             console.error('Download error:', error);
         } finally {
             downloadBtn.disabled = false;
