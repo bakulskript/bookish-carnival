@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>img.scdn.io CORS Test (Postman exact)</title>
+    <title>img.scdn.io CORS Test (image_url di FormData)</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -25,7 +25,7 @@
 </head>
 <body>
 
-<h2>img.scdn.io CORS Test (Postman exact)</h2>
+<h2>img.scdn.io CORS Test (image_url di FormData)</h2>
 <pre id="result">Memproses...</pre>
 
 <script>
@@ -49,6 +49,7 @@
         }
 
         try {
+            // Validasi URL
             let parsedUrl;
             try {
                 parsedUrl = new URL(originalUrl);
@@ -60,58 +61,49 @@
                 throw new Error('Hanya protokol HTTP dan HTTPS yang diizinkan');
             }
 
-            const isInstagram = parsedUrl.hostname.includes('fbcdn.net') || parsedUrl.hostname.includes('instagram.com');
+            // Bangun URL dengan parameter di query string (selain image_url)
+            const apiUrl = new URL('https://img.scdn.io/api/v1.php');
+            apiUrl.searchParams.set('outputFormat', 'auto');
+            apiUrl.searchParams.set('cdn_domain', 'default');
+            apiUrl.searchParams.set('storage_destination', 'local');
+            // image_url akan dikirim di FormData, bukan di query string
 
-            // Fungsi kirim ke img.scdn.io persis seperti Postman
-            async function sendToImgScdn(imageUrl) {
-                // Bangun URL dengan parameter di query string (seperti di Postman)
-                const apiUrl = new URL('https://img.scdn.io/api/v1.php');
-                apiUrl.searchParams.set('outputFormat', 'auto');
-                apiUrl.searchParams.set('cdn_domain', 'default');
-                apiUrl.searchParams.set('storage_destination', 'local');
-                apiUrl.searchParams.set('image_url', imageUrl); // juga di query string
+            // Buat FormData dan tambahkan image_url
+            const formData = new FormData();
+            formData.append('image_url', originalUrl); // URL asli, tidak di-encode
 
-                // Buat FormData dan tambahkan field image_url (seperti di body Postman)
-                const formData = new FormData();
-                formData.append('image_url', imageUrl);
-
-                const response = await fetch(apiUrl.toString(), {
-                    method: 'POST',
-                    body: formData, // ini akan mengirim multipart/form-data dengan field image_url
-                    headers: {
-                        'Accept': '*/*'
-                    },
-                    credentials: 'include' // kirim cookie jika ada
-                });
-
-                const text = await response.text();
-                let data;
-                try {
-                    data = JSON.parse(text);
-                } catch {
-                    data = { success: false, parseError: true, raw: text };
+            // Kirim request
+            const response = await fetch(apiUrl.toString(), {
+                method: 'POST',
+                body: formData, // Header Content-Type otomatis multipart/form-data
+                headers: {
+                    'Accept': '*/*'
                 }
-                return { response, data };
+            });
+
+            const text = await response.text();
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch {
+                data = { success: false, parseError: true, raw: text };
             }
 
-            // Coba langsung tanpa proxy
-            const { response, data } = await sendToImgScdn(originalUrl);
             if (response.ok && data.success) {
                 show({
                     success: true,
                     cors: true,
                     http_status: response.status,
-                    used_method: 'query string + FormData (image_url di body)',
                     original_url: originalUrl,
-                    img_scdn_response: data
+                    img_scdn_response: data,
+                    note: 'Berhasil! image_url dikirim di FormData (tidak di-encode di query string).'
                 });
             } else {
                 show({
                     success: false,
                     http_status: response.status,
                     img_scdn_response: data,
-                    error: 'Gagal memproses gambar.',
-                    note: 'Pastikan URL masih valid (token oh/oe belum kedaluwarsa).'
+                    error: 'Gagal memproses gambar.'
                 });
             }
 
