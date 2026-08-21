@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Canvas + Upload ke img.scdn.io</title>
+    <title>Canvas + Upload (tanpa konversi)</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -84,8 +84,8 @@
 </head>
 <body>
 <div class="container">
-    <h2>Canvas + Upload ke img.scdn.io</h2>
-    <label for="urlInput">URL Gambar (Instagram, dll.)</label>
+    <h2>Canvas + Upload (tanpa konversi)</h2>
+    <label for="urlInput">URL Gambar</label>
     <input type="text" id="urlInput" placeholder="https://example.com/image.jpg" value="https://via.placeholder.com/400">
     <div>
         <button id="loadBtn">Tampilkan</button>
@@ -95,7 +95,7 @@
     <div id="status"></div>
     <canvas id="canvas"></canvas>
     <div id="resultBox" class="result-box"></div>
-    <div class="note">Catatan: Gambar akan diambil dari URL (tanpa proxy) dan ditampilkan di canvas. Kemudian bisa diupload ke img.scdn.io sebagai file.</div>
+    <div class="note">Gambar diambil dari URL, ditampilkan di canvas, lalu diupload ke img.scdn.io sebagai file (blok asli, tanpa konversi).</div>
 </div>
 
 <script>
@@ -108,9 +108,9 @@
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
 
-    let currentBlobUrl = null;
-    let currentImage = null;
-    let currentBlob = null;
+    let currentBlob = null;          // blob asli dari fetch
+    let currentBlobUrl = null;       // untuk preview
+    let currentImage = null;         // untuk referensi
 
     function setStatus(message, type = 'loading') {
         statusDiv.textContent = message;
@@ -128,8 +128,8 @@
             URL.revokeObjectURL(currentBlobUrl);
             currentBlobUrl = null;
         }
-        currentImage = null;
         currentBlob = null;
+        currentImage = null;
         uploadBtn.disabled = true;
         resultBox.style.display = 'none';
     }
@@ -148,7 +148,7 @@
             const response = await fetch(imageUrl);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const blob = await response.blob();
-            currentBlob = blob; // simpan blob asli
+            currentBlob = blob;                          // simpan blob asli
             const blobUrl = URL.createObjectURL(blob);
             currentBlobUrl = blobUrl;
 
@@ -178,10 +178,10 @@
         }
     });
 
-    // ======== UPLOAD KE img.scdn.io ========
+    // ======== UPLOAD KE img.scdn.io (tanpa konversi) ========
     uploadBtn.addEventListener('click', async function() {
-        if (!currentImage) {
-            setStatus('Tidak ada gambar di canvas.', 'error');
+        if (!currentBlob) {
+            setStatus('Tidak ada blob gambar untuk diupload.', 'error');
             return;
         }
 
@@ -190,18 +190,25 @@
         resultBox.style.display = 'none';
 
         try {
-            // 1. Konversi canvas ke blob (format WebP untuk ukuran kecil)
-            const mimeType = 'image/webp';
-            const quality = 0.9; // 90% kualitas
-            const blob = await new Promise(resolve => canvas.toBlob(resolve, mimeType, quality));
-            if (!blob) throw new Error('Gagal konversi canvas ke blob.');
+            // 1. Ambil nama file dari URL atau beri nama default
+            let fileName = 'gambar';
+            const url = urlInput.value.trim();
+            const parts = url.split('/');
+            const last = parts[parts.length - 1];
+            if (last && last.includes('.')) {
+                fileName = last;
+            } else {
+                // Tambahkan ekstensi dari tipe konten blob
+                const ext = currentBlob.type.split('/')[1] || 'bin';
+                fileName += '.' + ext;
+            }
 
-            // 2. Siapkan FormData
+            // 2. Buat FormData sesuai dokumentasi
             const formData = new FormData();
-            formData.append('image', blob, 'gambar.webp');
-            formData.append('outputFormat', 'auto');   // biarkan server pilih terbaik
-            formData.append('cdn_domain', 'default');
-            formData.append('storage_destination', 'local');
+            formData.append('image', currentBlob, fileName);   // field 'image'
+            formData.append('outputFormat', 'auto');           // opsional
+            formData.append('cdn_domain', 'default');          // opsional
+            formData.append('storage_destination', 'local');   // opsional
 
             // 3. Kirim ke img.scdn.io
             const response = await fetch('https://img.scdn.io/api/v1.php', {
