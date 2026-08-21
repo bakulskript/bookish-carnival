@@ -3,55 +3,123 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Download / Blob Gambar</title>
+    <title>Tampilkan Gambar di Canvas</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 700px; margin: 50px auto; padding: 20px; background: #f4f4f4; }
-        .container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        label { font-weight: bold; display: block; margin-bottom: 8px; }
-        input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; box-sizing: border-box; }
-        button { background: #28a745; color: white; border: none; padding: 12px 24px; border-radius: 4px; font-size: 16px; cursor: pointer; margin-top: 15px; margin-right: 10px; }
-        button:hover { background: #218838; }
-        button:disabled { background: #6c757d; cursor: not-allowed; }
-        #status { margin-top: 15px; padding: 10px; border-radius: 4px; display: none; }
-        #status.error { background: #f8d7da; color: #721c24; display: block; }
-        #status.success { background: #d4edda; color: #155724; display: block; }
-        #status.loading { background: #cce5ff; color: #004085; display: block; }
-        #status.info { background: #fff3cd; color: #856404; display: block; }
-        .blob-box { background: #f0f0f0; padding: 10px; border-radius: 4px; margin-top: 15px; word-break: break-all; font-size: 12px; display: none; }
-        .note { font-size: 12px; color: #888; margin-top: 10px; font-style: italic; }
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f4f4f4;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 8px;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        #status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+        #status.error {
+            background: #f8d7da;
+            color: #721c24;
+            display: block;
+        }
+        #status.success {
+            background: #d4edda;
+            color: #155724;
+            display: block;
+        }
+        #status.loading {
+            background: #cce5ff;
+            color: #004085;
+            display: block;
+        }
+        #status.info {
+            background: #fff3cd;
+            color: #856404;
+            display: block;
+        }
+        #canvasContainer {
+            margin-top: 20px;
+            text-align: center;
+            display: none;
+        }
+        canvas {
+            max-width: 100%;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            background: #f0f0f0;
+        }
+        .info-text {
+            font-size: 14px;
+            color: #666;
+            margin-top: 10px;
+        }
+        .note {
+            font-size: 12px;
+            color: #888;
+            margin-top: 10px;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Download / Blob Gambar</h2>
+    <h2>Tampilkan Gambar di Canvas</h2>
     <label for="urlInput">URL Gambar</label>
-    <input type="text" id="urlInput" placeholder="https://example.com/image.jpg" value="https://via.placeholder.com/150">
-    <div>
-        <button id="downloadBtn">Download</button>
-        <button id="blobBtn">Lihat Blob URL</button>
-    </div>
+    <input type="text" id="urlInput" placeholder="https://example.com/image.jpg" value="https://via.placeholder.com/400x300">
+    <button id="showBtn">Tampilkan</button>
     <div id="status"></div>
-    <div class="blob-box" id="blobBox">
-        <strong>Blob URL:</strong><br>
-        <span id="blobUrlText"></span>
-        <br><br>
-        <button id="copyBtn" style="background:#007bff; padding: 6px 12px; font-size: 12px;">Copy Blob URL</button>
+    <div id="canvasContainer">
+        <canvas id="imageCanvas"></canvas>
+        <div class="info-text">Klik kanan pada canvas → Save Image As... untuk menyimpan.</div>
     </div>
-    <div class="note">Catatan: URL dari Instagram/Facebook biasanya tidak bisa diunduh langsung karena CORS. Jika gagal, buka URL di tab baru lalu simpan manual.</div>
+    <div class="note">Catatan: URL dari Instagram/Facebook biasanya tidak bisa diambil karena CORS. Jika gagal, buka URL di tab baru lalu lihat manual.</div>
 </div>
 
 <script>
     const urlInput = document.getElementById('urlInput');
-    const downloadBtn = document.getElementById('downloadBtn');
-    const blobBtn = document.getElementById('blobBtn');
+    const showBtn = document.getElementById('showBtn');
     const statusDiv = document.getElementById('status');
-    const blobBox = document.getElementById('blobBox');
-    const blobUrlText = document.getElementById('blobUrlText');
-    const copyBtn = document.getElementById('copyBtn');
-
-    let lastBlob = null;
-    let lastBlobUrl = null;
+    const canvas = document.getElementById('imageCanvas');
+    const ctx = canvas.getContext('2d');
+    const container = document.getElementById('canvasContainer');
 
     function setStatus(message, type = 'loading') {
         statusDiv.textContent = message;
@@ -61,101 +129,96 @@
 
     function clearStatus() {
         statusDiv.style.display = 'none';
-        blobBox.style.display = 'none';
     }
 
-    async function fetchImage(url) {
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status} ${response.statusText}`);
-        }
-        const blob = await response.blob();
-        return blob;
+    function clearCanvas() {
+        canvas.width = 0;
+        canvas.height = 0;
+        container.style.display = 'none';
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
 
-    async function handleFetch(callback) {
+    showBtn.addEventListener('click', async function() {
         const imageUrl = urlInput.value.trim();
         if (!imageUrl) {
             setStatus('Masukkan URL gambar terlebih dahulu.', 'error');
             return;
         }
 
-        try { new URL(imageUrl); } catch {
+        try {
+            new URL(imageUrl);
+        } catch {
             setStatus('URL tidak valid.', 'error');
             return;
         }
 
+        showBtn.disabled = true;
+        clearCanvas();
+        setStatus('⏳ Mengunduh gambar...', 'loading');
+
         try {
-            setStatus('⏳ Mengunduh...', 'loading');
-            const blob = await fetchImage(imageUrl);
-            lastBlob = blob;
-            const blobUrl = URL.createObjectURL(blob);
-            lastBlobUrl = blobUrl;
+            // Fetch langsung (tanpa proxy)
+            const response = await fetch(imageUrl);
 
-            callback(blob, blobUrl);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status} ${response.statusText}`);
+            }
 
-            setStatus(`✅ Selesai (${(blob.size / 1024).toFixed(2)} KB)`, 'success');
-            blobBox.style.display = 'block';
-            blobUrlText.textContent = blobUrl;
-            return blob;
+            const blob = await response.blob();
+            const objectUrl = URL.createObjectURL(blob);
+
+            // Buat image element untuk di-load ke canvas
+            const img = new Image();
+            img.crossOrigin = 'anonymous'; // tidak berpengaruh karena kita pakai blob URL
+
+            img.onload = function() {
+                // Tentukan ukuran canvas (maks 700px lebar)
+                let width = img.width;
+                let height = img.height;
+                const maxWidth = 700;
+                if (width > maxWidth) {
+                    const ratio = maxWidth / width;
+                    width = maxWidth;
+                    height = Math.round(height * ratio);
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                ctx.clearRect(0, 0, width, height);
+                ctx.drawImage(img, 0, 0, width, height);
+
+                container.style.display = 'block';
+                setStatus(`✅ Berhasil ditampilkan (${(blob.size / 1024).toFixed(2)} KB)`, 'success');
+
+                // Revoke object URL setelah selesai
+                URL.revokeObjectURL(objectUrl);
+            };
+
+            img.onerror = function() {
+                setStatus('❌ Gagal memuat gambar ke canvas.', 'error');
+                console.error('Image load error');
+            };
+
+            img.src = objectUrl;
+
         } catch (error) {
             if (error.message.includes('Failed to fetch') || error.message.includes('CORS')) {
-                setStatus('❌ Gagal karena CORS. Buka URL di tab baru lalu simpan manual.', 'info');
+                setStatus('❌ Gagal karena CORS. Buka URL di tab baru lalu lihat manual.', 'info');
             } else {
                 setStatus(`❌ Error: ${error.message}`, 'error');
             }
             console.error('Error:', error);
-            blobBox.style.display = 'none';
-            return null;
-        }
-    }
-
-    // Tombol Download
-    downloadBtn.addEventListener('click', async function() {
-        await handleFetch((blob, blobUrl) => {
-            const link = document.createElement('a');
-            link.href = blobUrl;
-            let fileName = urlInput.value.split('/').pop() || 'download';
-            if (!fileName.includes('.')) {
-                const ext = blob.type.split('/')[1] || 'bin';
-                fileName += '.' + ext;
-            }
-            link.download = fileName;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
-        });
-    });
-
-    // Tombol Lihat Blob URL
-    blobBtn.addEventListener('click', async function() {
-        await handleFetch((blob, blobUrl) => {});
-    });
-
-    // Copy Blob URL
-    copyBtn.addEventListener('click', function() {
-        const text = blobUrlText.textContent;
-        if (text) {
-            navigator.clipboard.writeText(text).then(() => {
-                copyBtn.textContent = '✅ Copied!';
-                setTimeout(() => { copyBtn.textContent = 'Copy Blob URL'; }, 2000);
-            }).catch(() => {
-                // fallback
-                const range = document.createRange();
-                range.selectNode(blobUrlText);
-                window.getSelection().removeAllRanges();
-                window.getSelection().addRange(range);
-                document.execCommand('copy');
-                copyBtn.textContent = '✅ Copied!';
-                setTimeout(() => { copyBtn.textContent = 'Copy Blob URL'; }, 2000);
-            });
+            showBtn.disabled = false;
+        } finally {
+            showBtn.disabled = false;
         }
     });
 
-    // Enter
+    // Enter key
     urlInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') downloadBtn.click();
+        if (e.key === 'Enter') {
+            showBtn.click();
+        }
     });
 </script>
 
