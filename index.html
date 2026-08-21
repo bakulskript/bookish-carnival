@@ -52,7 +52,9 @@
         async function fetchImgScdn(url, referer = null, userAgent = null) {
             const formData = new FormData();
             formData.append('image_url', url);
-            formData.append('outputFormat', 'webp');
+            formData.append('outputFormat', 'auto');
+            formData.append('cdn_domain', 'default');
+            formData.append('storage_destination', 'local');
 
             // Tambahkan header yang mungkin diteruskan oleh server
             if (referer) formData.append('referer', referer);
