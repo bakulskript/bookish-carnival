@@ -61,7 +61,7 @@
             // Alternatif: images.weserv.nl
             // const proxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(originalUrl)}`;
 
-            const downloadResponse = await fetch(imageUrl, {
+            const downloadResponse = await fetch(originalUrl, {
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
                 }
