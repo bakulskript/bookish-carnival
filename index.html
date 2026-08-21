@@ -56,10 +56,6 @@
             formData.append('cdn_domain', 'default');
             formData.append('storage_destination', 'local');
 
-            // Tambahkan header yang mungkin diteruskan oleh server
-            if (referer) formData.append('referer', referer);
-            if (userAgent) formData.append('user_agent', userAgent);
-
             const response = await fetch('https://img.scdn.io/api/v1.php', {
                 method: 'POST',
                 body: formData
