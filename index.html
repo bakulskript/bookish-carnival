@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>img.scdn.io CORS Test (Instagram Fix)</title>
+    <title>img.scdn.io CORS Test (dengan proxy weserv)</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -25,7 +25,7 @@
 </head>
 <body>
 
-<h2>img.scdn.io CORS Test (dengan perbaikan untuk Instagram)</h2>
+<h2>img.scdn.io CORS Test (Proxy untuk Instagram)</h2>
 <pre id="result">Memproses...</pre>
 
 <script>
@@ -37,9 +37,9 @@
         }
 
         const params = new URLSearchParams(window.location.search);
-        let imageUrl = params.get('url');
+        let originalUrl = params.get('url');
 
-        if (!imageUrl) {
+        if (!originalUrl) {
             show({
                 success: false,
                 error: 'Parameter URL tidak ditemukan',
@@ -48,13 +48,42 @@
             return;
         }
 
-        // Fungsi untuk mengirim permintaan ke img.scdn.io
-        async function fetchImgScdn(url, referer = null, userAgent = null) {
+        try {
+            // Validasi URL
+            let parsedUrl;
+            try {
+                parsedUrl = new URL(originalUrl);
+            } catch {
+                throw new Error('URL gambar tidak valid');
+            }
+
+            if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+                throw new Error('Hanya protokol HTTP dan HTTPS yang diizinkan');
+            }
+
+            // Deteksi apakah URL berasal dari Instagram (domain fbcdn.net atau instagram.com)
+            const host = parsedUrl.hostname.toLowerCase();
+            const isInstagram = host.includes('fbcdn.net') || host.includes('instagram.com');
+
+            let finalUrl = originalUrl;
+
+            // Jika dari Instagram, bungkus dengan proxy weserv.nl
+            if (isInstagram) {
+                const proxyBase = 'https://images.weserv.nl/';
+                // Parameter 'url' harus di-encode
+                const encoded = encodeURIComponent(originalUrl);
+                finalUrl = proxyBase + '?url=' + encoded;
+                // Opsional: kita bisa tambahkan parameter lain seperti 'output=webp' tapi nanti di img.scdn.io juga diubah
+            }
+
+            // Kirim ke img.scdn.io
             const formData = new FormData();
-            formData.append('image_url', url);
-            formData.append('outputFormat', 'auto');
-            formData.append('cdn_domain', 'default');
-            formData.append('storage_destination', 'local');
+            formData.append('image_url', finalUrl);
+            formData.append('outputFormat', 'webp');
+
+            // Sertakan header pendukung (tidak wajib, tapi aman)
+            formData.append('referer', 'https://www.instagram.com/');
+            formData.append('user_agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
 
             const response = await fetch('https://img.scdn.io/api/v1.php', {
                 method: 'POST',
@@ -68,83 +97,30 @@
             } catch {
                 data = { success: false, parseError: true, raw: text };
             }
-            return { response, data };
-        }
 
-        try {
-            // Validasi URL
-            let parsedUrl;
-            try {
-                parsedUrl = new URL(imageUrl);
-            } catch {
-                throw new Error('URL gambar tidak valid');
-            }
-
-            if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-                throw new Error('Hanya protokol HTTP dan HTTPS yang diizinkan');
-            }
-
-            // ---------- PERMINTAAN PERTAMA (dengan referer & user-agent) ----------
-            const { response: res1, data: data1 } = await fetchImgScdn(
-                imageUrl,
-                'https://www.instagram.com/',
-                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            );
-
-            // Jika sukses, tampilkan hasil
-            if (res1.ok && data1.success) {
+            if (response.ok && data.success) {
                 show({
                     success: true,
                     cors: true,
-                    http_status: res1.status,
-                    img_scdn_response: data1,
-                    note: 'Berhasil dengan referer + user-agent.'
+                    http_status: response.status,
+                    used_proxy: isInstagram ? 'weserv.nl' : 'langsung',
+                    original_url: originalUrl,
+                    final_url_sent: finalUrl,
+                    img_scdn_response: data,
+                    note: 'Berhasil menggunakan proxy weserv.nl untuk gambar Instagram.'
                 });
-                return;
-            }
-
-            // ---------- FALLBACK: coba tanpa query string (jika error 403/400) ----------
-            if (res1.status === 400 || res1.status === 403) {
-                // Potong query string
-                const baseUrl = parsedUrl.origin + parsedUrl.pathname;
-                // Coba lagi dengan URL yang sudah dibersihkan
-                const { response: res2, data: data2 } = await fetchImgScdn(
-                    baseUrl,
-                    'https://www.instagram.com/',
-                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-                );
-
-                if (res2.ok && data2.success) {
-                    show({
-                        success: true,
-                        cors: true,
-                        http_status: res2.status,
-                        img_scdn_response: data2,
-                        note: 'Berhasil setelah menghapus query string.'
-                    });
-                    return;
-                }
-
-                // Jika gagal lagi, tampilkan error gabungan
+            } else {
+                // Gagal
                 show({
                     success: false,
                     cors: true,
-                    http_status: res2.status,
-                    img_scdn_response: data2,
-                    error: 'Gagal mengakses gambar Instagram meskipun sudah dicoba dengan dan tanpa query string.',
-                    saran: 'Coba gunakan URL gambar yang sudah di-cache atau layanan proxy lain (misal: https://corsproxy.io/).'
+                    http_status: response.status,
+                    used_proxy: isInstagram ? 'weserv.nl' : 'langsung',
+                    img_scdn_response: data,
+                    error: 'Gagal memproses gambar melalui img.scdn.io.',
+                    saran: 'Jika masih gagal, coba gunakan URL gambar yang sudah di-cache atau unduh manual lalu unggah ke layanan seperti imgbb.com.'
                 });
-                return;
             }
-
-            // Jika gagal dengan status lain
-            show({
-                success: false,
-                cors: true,
-                http_status: res1.status,
-                img_scdn_response: data1,
-                error: 'Gagal mengakses API img.scdn.io.'
-            });
 
         } catch (error) {
             show({
