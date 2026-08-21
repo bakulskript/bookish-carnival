@@ -3,100 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Download Gambar (Tanpa Proxy)</title>
+    <title>Download / Blob Gambar</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 600px;
-            margin: 50px auto;
-            padding: 20px;
-            background: #f4f4f4;
-        }
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        label {
-            font-weight: bold;
-            display: block;
-            margin-bottom: 8px;
-        }
-        input[type="text"] {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
-            box-sizing: border-box;
-        }
-        button {
-            background: #28a745;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 4px;
-            font-size: 16px;
-            cursor: pointer;
-            margin-top: 15px;
-        }
-        button:hover {
-            background: #218838;
-        }
-        button:disabled {
-            background: #6c757d;
-            cursor: not-allowed;
-        }
-        #status {
-            margin-top: 15px;
-            padding: 10px;
-            border-radius: 4px;
-            display: none;
-        }
-        #status.error {
-            background: #f8d7da;
-            color: #721c24;
-            display: block;
-        }
-        #status.success {
-            background: #d4edda;
-            color: #155724;
-            display: block;
-        }
-        #status.loading {
-            background: #cce5ff;
-            color: #004085;
-            display: block;
-        }
-        #status.info {
-            background: #fff3cd;
-            color: #856404;
-            display: block;
-        }
-        .note {
-            font-size: 12px;
-            color: #888;
-            margin-top: 10px;
-            font-style: italic;
-        }
+        body { font-family: Arial, sans-serif; max-width: 700px; margin: 50px auto; padding: 20px; background: #f4f4f4; }
+        .container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        label { font-weight: bold; display: block; margin-bottom: 8px; }
+        input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; box-sizing: border-box; }
+        button { background: #28a745; color: white; border: none; padding: 12px 24px; border-radius: 4px; font-size: 16px; cursor: pointer; margin-top: 15px; margin-right: 10px; }
+        button:hover { background: #218838; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        #status { margin-top: 15px; padding: 10px; border-radius: 4px; display: none; }
+        #status.error { background: #f8d7da; color: #721c24; display: block; }
+        #status.success { background: #d4edda; color: #155724; display: block; }
+        #status.loading { background: #cce5ff; color: #004085; display: block; }
+        #status.info { background: #fff3cd; color: #856404; display: block; }
+        .blob-box { background: #f0f0f0; padding: 10px; border-radius: 4px; margin-top: 15px; word-break: break-all; font-size: 12px; display: none; }
+        .note { font-size: 12px; color: #888; margin-top: 10px; font-style: italic; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Download Gambar</h2>
+    <h2>Download / Blob Gambar</h2>
     <label for="urlInput">URL Gambar</label>
     <input type="text" id="urlInput" placeholder="https://example.com/image.jpg" value="https://via.placeholder.com/150">
-    <button id="downloadBtn">Download</button>
+    <div>
+        <button id="downloadBtn">Download</button>
+        <button id="blobBtn">Lihat Blob URL</button>
+    </div>
     <div id="status"></div>
+    <div class="blob-box" id="blobBox">
+        <strong>Blob URL:</strong><br>
+        <span id="blobUrlText"></span>
+        <br><br>
+        <button id="copyBtn" style="background:#007bff; padding: 6px 12px; font-size: 12px;">Copy Blob URL</button>
+    </div>
     <div class="note">Catatan: URL dari Instagram/Facebook biasanya tidak bisa diunduh langsung karena CORS. Jika gagal, buka URL di tab baru lalu simpan manual.</div>
 </div>
 
 <script>
     const urlInput = document.getElementById('urlInput');
     const downloadBtn = document.getElementById('downloadBtn');
+    const blobBtn = document.getElementById('blobBtn');
     const statusDiv = document.getElementById('status');
+    const blobBox = document.getElementById('blobBox');
+    const blobUrlText = document.getElementById('blobUrlText');
+    const copyBtn = document.getElementById('copyBtn');
+
+    let lastBlob = null;
+    let lastBlobUrl = null;
 
     function setStatus(message, type = 'loading') {
         statusDiv.textContent = message;
@@ -106,83 +61,101 @@
 
     function clearStatus() {
         statusDiv.style.display = 'none';
+        blobBox.style.display = 'none';
     }
 
-    downloadBtn.addEventListener('click', async function() {
+    async function fetchImage(url) {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status} ${response.statusText}`);
+        }
+        const blob = await response.blob();
+        return blob;
+    }
+
+    async function handleFetch(callback) {
         const imageUrl = urlInput.value.trim();
         if (!imageUrl) {
             setStatus('Masukkan URL gambar terlebih dahulu.', 'error');
             return;
         }
 
-        // Validasi URL
-        try {
-            new URL(imageUrl);
-        } catch {
+        try { new URL(imageUrl); } catch {
             setStatus('URL tidak valid.', 'error');
             return;
         }
 
-        downloadBtn.disabled = true;
-        setStatus('⏳ Mengunduh gambar...', 'loading');
-
         try {
-            // Coba fetch langsung (tanpa proxy)
-            const response = await fetch(imageUrl, {
-                mode: 'cors' // default, tapi tetap akan gagal jika server tidak memberi CORS
-            });
+            setStatus('⏳ Mengunduh...', 'loading');
+            const blob = await fetchImage(imageUrl);
+            lastBlob = blob;
+            const blobUrl = URL.createObjectURL(blob);
+            lastBlobUrl = blobUrl;
 
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status} ${response.statusText}`);
+            callback(blob, blobUrl);
+
+            setStatus(`✅ Selesai (${(blob.size / 1024).toFixed(2)} KB)`, 'success');
+            blobBox.style.display = 'block';
+            blobUrlText.textContent = blobUrl;
+            return blob;
+        } catch (error) {
+            if (error.message.includes('Failed to fetch') || error.message.includes('CORS')) {
+                setStatus('❌ Gagal karena CORS. Buka URL di tab baru lalu simpan manual.', 'info');
+            } else {
+                setStatus(`❌ Error: ${error.message}`, 'error');
             }
+            console.error('Error:', error);
+            blobBox.style.display = 'none';
+            return null;
+        }
+    }
 
-            // Ambil blob
-            const blob = await response.blob();
-            const contentType = blob.type || 'application/octet-stream';
-            
-            // Ekstrak nama file dari URL
-            let fileName = imageUrl.split('/').pop() || 'download';
-            // Jika tidak ada ekstensi, tambahkan berdasarkan content-type
+    // Tombol Download
+    downloadBtn.addEventListener('click', async function() {
+        await handleFetch((blob, blobUrl) => {
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            let fileName = urlInput.value.split('/').pop() || 'download';
             if (!fileName.includes('.')) {
-                const ext = contentType.split('/')[1] || 'bin';
+                const ext = blob.type.split('/')[1] || 'bin';
                 fileName += '.' + ext;
             }
-
-            // Buat link download
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
             link.download = fileName;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+        });
+    });
 
-            // Revoke URL setelah download
-            setTimeout(() => URL.revokeObjectURL(link.href), 100);
+    // Tombol Lihat Blob URL
+    blobBtn.addEventListener('click', async function() {
+        await handleFetch((blob, blobUrl) => {});
+    });
 
-            setStatus(`✅ Berhasil diunduh: ${fileName} (${(blob.size / 1024).toFixed(2)} KB)`, 'success');
-
-        } catch (error) {
-            // CORS error biasanya: TypeError: Failed to fetch
-            if (error.message.includes('Failed to fetch') || error.message.includes('CORS')) {
-                setStatus(
-                    '❌ Gagal mengunduh karena CORS (server tidak mengizinkan akses dari browser).\n' +
-                    'Solusi: Buka URL di tab baru, lalu klik kanan → Save Image As...',
-                    'info'
-                );
-            } else {
-                setStatus(`❌ Error: ${error.message}`, 'error');
-            }
-            console.error('Download error:', error);
-        } finally {
-            downloadBtn.disabled = false;
+    // Copy Blob URL
+    copyBtn.addEventListener('click', function() {
+        const text = blobUrlText.textContent;
+        if (text) {
+            navigator.clipboard.writeText(text).then(() => {
+                copyBtn.textContent = '✅ Copied!';
+                setTimeout(() => { copyBtn.textContent = 'Copy Blob URL'; }, 2000);
+            }).catch(() => {
+                // fallback
+                const range = document.createRange();
+                range.selectNode(blobUrlText);
+                window.getSelection().removeAllRanges();
+                window.getSelection().addRange(range);
+                document.execCommand('copy');
+                copyBtn.textContent = '✅ Copied!';
+                setTimeout(() => { copyBtn.textContent = 'Copy Blob URL'; }, 2000);
+            });
         }
     });
 
-    // Tombol enter di input
+    // Enter
     urlInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            downloadBtn.click();
-        }
+        if (e.key === 'Enter') downloadBtn.click();
     });
 </script>
 
