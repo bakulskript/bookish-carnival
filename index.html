@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>img.scdn.io CORS Test (Mirip Postman)</title>
+    <title>img.scdn.io CORS Test (Manual Query)</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -18,6 +18,8 @@
             border-radius: 8px;
             white-space: pre-wrap;
             word-break: break-word;
+            max-height: 600px;
+            overflow: auto;
         }
         .success { color: #4caf50; }
         .error   { color: #f44336; }
@@ -25,7 +27,7 @@
 </head>
 <body>
 
-<h2>img.scdn.io CORS Test (Postman Style)</h2>
+<h2>img.scdn.io CORS Test (meniru Postman)</h2>
 <pre id="result">Memproses...</pre>
 
 <script>
@@ -61,26 +63,12 @@
                 throw new Error('Hanya protokol HTTP dan HTTPS yang diizinkan');
             }
 
-            // ---------- ENCODE URL untuk query string (hanya ganti & dengan %26) ----------
-            // Ini sesuai dengan yang dilakukan Postman
-            const encodedForQuery = originalUrl.replace(/&/g, '%26');
+            // ---------- ENCODE URL gambar (hanya ganti & dengan %26) ----------
+            const encodedImageUrl = originalUrl.replace(/&/g, '%26');
 
-            // Bangun URL API dengan parameter di query string
-            const apiUrl = new URL('https://img.scdn.io/api/v1.php');
-            apiUrl.searchParams.set('outputFormat', 'auto');
-            apiUrl.searchParams.set('cdn_domain', 'default');
-            apiUrl.searchParams.set('storage_destination', 'local');
-            // Set image_url dengan nilai yang sudah di-encode secara manual
-            // Karena URLSearchParams akan meng-encode lagi, kita set langsung sebagai string
-            // Kita override dengan menggabungkan manual
-            const baseUrl = apiUrl.toString().split('?')[0];
-            const queryParams = new URLSearchParams({
-                outputFormat: 'auto',
-                cdn_domain: 'default',
-                storage_destination: 'local'
-            });
-            // Tambahkan image_url dengan encoding khusus (hanya &)
-            const finalUrl = `${baseUrl}?${queryParams.toString()}&image_url=${encodedForQuery}`;
+            // Bangun URL API secara manual
+            const baseApi = 'https://img.scdn.io/api/v1.php';
+            const finalUrl = `${baseApi}?outputFormat=auto&cdn_domain=default&storage_destination=local&image_url=${encodedImageUrl}`;
 
             // ---------- BUAT FORMDATA untuk body (field image_url dengan nilai mentah) ----------
             const formData = new FormData();
@@ -93,7 +81,7 @@
                 headers: {
                     'Accept': '*/*'
                 },
-                credentials: 'include'   // kirim cookie jika ada (misal PHPSESSID)
+                credentials: 'include'   // kirim cookie jika ada
             });
 
             const text = await response.text();
@@ -110,9 +98,9 @@
                     success: true,
                     cors: true,
                     http_status: response.status,
-                    used_method: 'query string (encode &) + FormData body',
+                    method: 'POST dengan query string manual',
                     original_url: originalUrl,
-                    encoded_url_sent: encodedForQuery,
+                    encoded_url_sent: encodedImageUrl,
                     final_request_url: finalUrl,
                     img_scdn_response: data
                 });
@@ -121,9 +109,9 @@
                     success: false,
                     cors: true,
                     http_status: response.status,
-                    used_method: 'query string + FormData',
+                    method: 'POST dengan query string manual',
                     img_scdn_response: data,
-                    error: 'Gagal memproses gambar. Mungkin URL sudah kedaluwarsa.'
+                    error: 'Gagal memproses gambar. Mungkin URL sudah kedaluwarsa atau session cookie dibutuhkan.'
                 });
             }
 
@@ -133,7 +121,7 @@
                 cors: false,
                 error: error.name,
                 message: error.message,
-                note: 'Jika CORS error, berarti browser memblokir. Pastikan tidak ada ekstensi yang mengganggu.'
+                note: 'Jika CORS error, berarti browser memblokir. Coba dengan ekstensi CORS atau gunakan proxy.'
             });
             console.error('FULL ERROR:', error);
         }
