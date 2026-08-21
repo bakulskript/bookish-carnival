@@ -3,141 +3,165 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>img.scdn.io Upload via Blob</title>
+    <title>Download Gambar</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 900px; margin: 40px auto; padding: 20px; }
-        pre { background: #111; color: #eee; padding: 20px; border-radius: 8px; white-space: pre-wrap; word-break: break-word; max-height: 600px; overflow: auto; }
-        .success { color: #4caf50; }
-        .error   { color: #f44336; }
-        .info    { color: #2196F3; }
-        #status { background: #333; color: #fff; padding: 10px; border-radius: 5px; margin-bottom: 10px; }
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f4f4f4;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 8px;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        #status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+        #status.error {
+            background: #f8d7da;
+            color: #721c24;
+            display: block;
+        }
+        #status.success {
+            background: #d4edda;
+            color: #155724;
+            display: block;
+        }
+        #status.loading {
+            background: #cce5ff;
+            color: #004085;
+            display: block;
+        }
     </style>
 </head>
 <body>
 
-<h2>Upload Gambar ke img.scdn.io (via Blob)</h2>
-<div id="status">⏳ Memproses...</div>
-<pre id="result">Menunggu...</pre>
+<div class="container">
+    <h2>Download Gambar</h2>
+    <label for="urlInput">URL Gambar</label>
+    <input type="text" id="urlInput" placeholder="https://example.com/image.jpg" value="https://via.placeholder.com/150">
+    <button id="downloadBtn">Download</button>
+    <div id="status"></div>
+</div>
 
 <script>
-    (async function () {
-        const result = document.getElementById('result');
-        const status = document.getElementById('status');
+    const urlInput = document.getElementById('urlInput');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const statusDiv = document.getElementById('status');
 
-        function show(data) {
-            result.textContent = JSON.stringify(data, null, 2);
-            status.textContent = data.success ? '✅ Berhasil' : '❌ Gagal';
-            status.style.background = data.success ? '#1b5e20' : '#b71c1c';
-        }
+    function setStatus(message, type = 'loading') {
+        statusDiv.textContent = message;
+        statusDiv.className = type;
+        statusDiv.style.display = 'block';
+    }
 
-        const params = new URLSearchParams(window.location.search);
-        let originalUrl = params.get('url');
+    function clearStatus() {
+        statusDiv.style.display = 'none';
+    }
 
-        if (!originalUrl) {
-            show({
-                success: false,
-                error: 'Parameter URL tidak ditemukan',
-                usage: 'https://bakulskript.github.io/bookish-carnival/?url=https://example.com/image.jpg'
-            });
+    downloadBtn.addEventListener('click', async function() {
+        const imageUrl = urlInput.value.trim();
+        if (!imageUrl) {
+            setStatus('Masukkan URL gambar terlebih dahulu.', 'error');
             return;
         }
 
+        // Validasi URL
         try {
-            // Validasi URL
-            let parsedUrl;
-            try {
-                parsedUrl = new URL(originalUrl);
-            } catch {
-                throw new Error('URL gambar tidak valid');
-            }
-            if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-                throw new Error('Hanya protokol HTTP dan HTTPS yang diizinkan');
-            }
+            new URL(imageUrl);
+        } catch {
+            setStatus('URL tidak valid.', 'error');
+            return;
+        }
 
-            // ---------- STEP 1: Download gambar via proxy CORS ----------
-            status.textContent = '⬇️ Mengunduh gambar dari Instagram...';
-            // Gunakan proxy yang mendukung CORS
-            const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(originalUrl)}`;
-            // Alternatif: images.weserv.nl
-            // const proxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(originalUrl)}`;
+        downloadBtn.disabled = true;
+        setStatus('⏳ Mengunduh gambar...', 'loading');
 
-            const downloadResponse = await fetch(originalUrl, {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                }
-            });
+        try {
+            // Gunakan proxy CORS untuk menghindari blokir
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(imageUrl)}`;
+            const response = await fetch(proxyUrl);
 
-            if (!downloadResponse.ok) {
-                throw new Error(`Gagal mengunduh gambar: HTTP ${downloadResponse.status}`);
+            if (!response.ok) {
+                throw new Error(`Gagal mengunduh: HTTP ${response.status}`);
             }
 
-            // Dapatkan blob dari respons
-            const blob = await downloadResponse.blob();
-            const contentType = blob.type || 'image/jpeg'; // fallback
-            const extension = contentType.split('/')[1] || 'jpg';
-
-            // ---------- STEP 2: Upload blob ke img.scdn.io ----------
-            status.textContent = '⬆️ Mengunggah ke img.scdn.io...';
-            const formData = new FormData();
-            // Field 'image' untuk file, bukan 'image_url'
-            formData.append('image', blob, `image.${extension}`);
-            formData.append('outputFormat', 'auto');
-            formData.append('cdn_domain', 'default');
-            formData.append('storage_destination', 'local');
-
-            const uploadResponse = await fetch('https://img.scdn.io/api/v1.php', {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'Accept': '*/*'
-                },
-                credentials: 'include' // kirim cookie jika ada
-            });
-
-            const text = await uploadResponse.text();
-            let data;
-            try {
-                data = JSON.parse(text);
-            } catch {
-                data = { success: false, parseError: true, raw: text };
+            // Ambil blob
+            const blob = await response.blob();
+            const contentType = blob.type || 'application/octet-stream';
+            
+            // Ekstrak nama file dari URL
+            let fileName = imageUrl.split('/').pop() || 'download';
+            // Jika tidak ada ekstensi, tambahkan berdasarkan content-type
+            if (!fileName.includes('.')) {
+                const ext = contentType.split('/')[1] || 'bin';
+                fileName += '.' + ext;
             }
 
-            // ---------- STEP 3: Tampilkan hasil ----------
-            if (uploadResponse.ok && data.success) {
-                show({
-                    success: true,
-                    http_status: uploadResponse.status,
-                    method: 'Download via proxy + Upload blob',
-                    original_url: originalUrl,
-                    proxy_used: proxyUrl,
-                    file_size: blob.size,
-                    content_type: contentType,
-                    img_scdn_response: data,
-                    note: '✅ Berhasil! Gambar diunduh dari Instagram via proxy, lalu diunggah sebagai file.'
-                });
-            } else {
-                show({
-                    success: false,
-                    http_status: uploadResponse.status,
-                    method: 'Download via proxy + Upload blob',
-                    img_scdn_response: data,
-                    error: 'Gagal mengunggah ke img.scdn.io.',
-                    saran: 'Periksa kembali URL atau coba proxy lain.'
-                });
-            }
+            // Buat link download
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            // Revoke URL setelah download
+            setTimeout(() => URL.revokeObjectURL(link.href), 100);
+
+            setStatus(`✅ Berhasil diunduh: ${fileName} (${(blob.size / 1024).toFixed(2)} KB)`, 'success');
 
         } catch (error) {
-            show({
-                success: false,
-                cors: false,
-                error: error.name,
-                message: error.message,
-                note: '❌ Terjadi kesalahan saat mengunduh atau mengunggah.\n' +
-                      'Pastikan proxy yang digunakan mendukung CORS dan URL gambar valid.'
-            });
-            console.error('FULL ERROR:', error);
+            setStatus(`❌ Error: ${error.message}`, 'error');
+            console.error('Download error:', error);
+        } finally {
+            downloadBtn.disabled = false;
         }
-    })();
+    });
+
+    // Tombol enter di input
+    urlInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            downloadBtn.click();
+        }
+    });
 </script>
 
 </body>
