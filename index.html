@@ -178,7 +178,14 @@
         }
     });
 
-    // ======== UPLOAD KE img.scdn.io (tanpa konversi) ========
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
     // ======== UPLOAD KE img.scdn.io ========
 uploadBtn.addEventListener('click', async function () {
     if (!currentBlob) {
