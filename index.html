@@ -238,11 +238,11 @@ uploadBtn.addEventListener('click', async function () {
 
         // Gunakan CDN tertentu jika memang diinginkan.
         // Bisa juga dihapus agar server memilih otomatis.
-        formData.append('cdn_domain', 'img.scdn.io');
+        formData.append('cdn_domain', 'default');
 
         // Simpan ke local storage backend
         formData.append('storage_destination', 'local');
-
+        formData.append('outputFormat', 'auto');
         // PENTING:
         // Jangan set Content-Type secara manual.
         // Browser akan otomatis membuat:
