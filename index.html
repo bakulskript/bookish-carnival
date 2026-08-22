@@ -296,7 +296,7 @@
     <div class="section">
 
         <div class="section-title">
-            Buat Thumbnail
+            Buat Preview
         </div>
 
         <div class="action-row">
@@ -306,7 +306,7 @@
                 class="btn-thumbnail"
                 disabled
             >
-                Buat Thumbnail
+                Buat Preview
             </button>
 
             <select id="overlaySelect">
@@ -439,13 +439,13 @@
         Gambar asli hanya digunakan sebagai sumber.
         <br>
 
-        Tombol "Buat Thumbnail" membuat gambar baru berukuran
+        Tombol "Buat Preview" membuat gambar baru berukuran
         1200 × 630 dengan background blur, foreground contain,
         dan overlay yang dipilih.
         <br>
 
         Tombol "Upload Thumbnail" hanya mengupload hasil thumbnail
-        terakhir ke img.scdn.io.
+        terakhir ke Server.
 
     </div>
 
@@ -1070,7 +1070,7 @@ loadBtn.addEventListener(
 
 
             setStatus(
-                '✅ Gambar asli berhasil dimuat.',
+                '✅ Foto berhasil didapat.',
                 'success'
             );
 
@@ -1348,7 +1348,7 @@ uploadBtn.addEventListener(
             // =================================================
 
             setStatus(
-                '✅ Thumbnail berhasil diupload ke imgcdn.dev!',
+                '✅ Gambar berhasil diupload!',
                 'success'
             );
 
