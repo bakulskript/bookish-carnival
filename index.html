@@ -1227,74 +1227,47 @@ uploadBtn.addEventListener(
     'click',
     async function () {
 
-        // ----------------------------------------------------
-        // Pastikan thumbnail tersedia
-        // ----------------------------------------------------
-
         if (!thumbnailBlob) {
-
             setStatus(
                 'Belum ada thumbnail untuk diupload.',
                 'error'
             );
-
             return;
         }
 
-
-        uploadBtn.disabled =
-            true;
-
+        uploadBtn.disabled = true;
 
         setStatus(
-            '⏳ Mengupload thumbnail ke img.scdn.io...',
+            '⏳ Mengupload thumbnail ke imgcdn.dev...',
             'loading'
         );
 
-
-        resultBox.style.display =
-            'none';
-
+        resultBox.style.display = 'none';
 
         try {
+
+            // =================================================
+            // API KEY
+            // =================================================
+
+            const API_KEY = '5386e05a3562c7a8f984e73401540836';
+
 
             // =================================================
             // FORM DATA
             // =================================================
 
-            const formData =
-                new FormData();
+            const formData1 = new FormData();
 
-
-            /*
-                PENTING:
-
-                Yang diupload adalah thumbnailBlob,
-                bukan currentBlob.
-            */
-
-            formData.append(
-                'image',
+            formData1.append(
+                'source',
                 thumbnailBlob,
                 'thumbnail.jpg'
             );
 
-
-            formData.append(
-                'cdn_domain',
-                'default'
-            );
-
-
-            formData.append(
-                'storage_destination',
-                'local'
-            );
-
-
-            formData.append(
-                'outputFormat',
-                'auto'
+            formData1.append(
+                'key',
+                API_KEY
             );
 
 
@@ -1302,12 +1275,12 @@ uploadBtn.addEventListener(
             // UPLOAD
             // =================================================
 
-            const response =
+            const upload1Response =
                 await fetch(
-                    'https://img.scdn.io/api/v1.php',
+                    'https://imgcdn.dev/api/1/upload',
                     {
                         method: 'POST',
-                        body: formData
+                        body: formData1
                     }
                 );
 
@@ -1316,19 +1289,18 @@ uploadBtn.addEventListener(
             // RESPONSE
             // =================================================
 
-            const data =
-                await response.json();
+            const result1 =
+                await upload1Response.json();
 
 
             console.log(
                 'HTTP Status:',
-                response.status
+                upload1Response.status
             );
 
-
             console.log(
-                'Upload response:',
-                data
+                'imgcdn.dev response:',
+                result1
             );
 
 
@@ -1336,55 +1308,40 @@ uploadBtn.addEventListener(
             // HTTP ERROR
             // =================================================
 
-            if (!response.ok) {
+            if (!upload1Response.ok) {
 
                 throw new Error(
-                    data.error ||
-                    data.message ||
-                    `HTTP ${response.status}`
+                    result1.error?.message ||
+                    result1.error ||
+                    result1.message ||
+                    `HTTP ${upload1Response.status}`
                 );
             }
 
 
             // =================================================
-            // API ERROR
+            // AMBIL URL
             // =================================================
 
-            if (
-                data.success !== true
-            ) {
+            const rawUploadedUrl =
+                result1.image?.url ||
+                result1.url;
+
+
+            if (!rawUploadedUrl) {
 
                 throw new Error(
-                    data.error ||
-                    data.message ||
-                    'Upload gagal.'
+                    'Upload berhasil tetapi URL gambar tidak ditemukan dalam response.'
                 );
             }
 
 
             // =================================================
-            // AMBIL URL HASIL UPLOAD
-            // =================================================
-
-            const uploadedUrl =
-                data.url ||
-                data.data?.url;
-
-
-            if (!uploadedUrl) {
-
-                throw new Error(
-                    'Upload berhasil tetapi URL tidak ditemukan.'
-                );
-            }
-
-
-            // =================================================
-            // HASIL
+            // BERHASIL
             // =================================================
 
             setStatus(
-                '✅ Thumbnail berhasil diupload!',
+                '✅ Thumbnail berhasil diupload ke imgcdn.dev!',
                 'success'
             );
 
@@ -1398,12 +1355,33 @@ uploadBtn.addEventListener(
                 <br><br>
 
                 <a
-                    href="${escapeHtml(uploadedUrl)}"
+                    href="${escapeHtml(rawUploadedUrl)}"
                     target="_blank"
                     rel="noopener noreferrer"
                 >
-                    ${escapeHtml(uploadedUrl)}
+                    ${escapeHtml(rawUploadedUrl)}
                 </a>
+
+                <br><br>
+
+                <strong>
+                    Response JSON:
+                </strong>
+
+                <pre style="
+                    white-space: pre-wrap;
+                    word-break: break-word;
+                    background: #eee;
+                    padding: 10px;
+                    border-radius: 4px;
+                    margin-top: 8px;
+                ">${escapeHtml(
+                    JSON.stringify(
+                        result1,
+                        null,
+                        2
+                    )
+                )}</pre>
 
             `;
 
@@ -1413,8 +1391,8 @@ uploadBtn.addEventListener(
 
 
             console.log(
-                'FINAL URL:',
-                uploadedUrl
+                'FINAL IMAGE URL:',
+                rawUploadedUrl
             );
 
 
@@ -1440,7 +1418,6 @@ uploadBtn.addEventListener(
 
     }
 );
-
 
 // ============================================================
 // CLEAR
